@@ -8,6 +8,16 @@ const defaultPaths = [
   '^/actuator/prometheus'
 ]
 
+let encode = str => {
+  let buf = [];
+
+  for (var i = str.length - 1; i >= 0; i--) {
+    buf.unshift(['&#', str[i].charCodeAt(), ';'].join(''));
+  }
+
+  return buf.join('');
+}
+
 const formatPrometheusMetrics = (body) => body
   .split(/\r?\n/)
   .map(line => {
@@ -25,7 +35,21 @@ const formatPrometheusMetrics = (body) => body
     if (tmp && tmp.length > 1) {
       let [ _, metric, tags, value ] = tmp
       if (tags) {
-        tags = tags.replace(/([^,]+?)="(.*?)"/g, '<span class="label-key">$1</span>="<span class="label-value">$2</span>"')
+        var regex = /([^,]+?)="([^"\\]*(?:\\.[^"\\]*)*)"/g
+        var match = [...tags.matchAll(regex)];
+        tags = ''
+
+        match.map((m, i) => {
+          var labelName = '<span class="label-key">' + encode(m[1]) + '</span>'
+          var labelValue = '<span class="label-value">' + encode(m[2]) + '</span>'
+
+          if (i !== 0) {
+            tags += ','
+          }
+
+          tags += `${labelName}="${labelValue}"`
+        })
+
         tags = `{${tags}}`
       }
 
